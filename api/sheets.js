@@ -1,5 +1,14 @@
 import { google } from "googleapis"
 
+function parseCLP(value) {
+  if (!value) return 0
+  return Number(value.replace(/[^\d-]/g, ""))
+}
+
+function sum(obj = {}) {
+  return Object.values(obj).reduce((a, v) => a + parseCLP(v), 0)
+}
+
 export default async function handler(req, res) {
   try {
     const auth = new google.auth.JWT(
@@ -11,53 +20,58 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    const spreadsheetId = process.env.SPREADSHEET_ID
+    const sheetId = process.env.SHEET_ID
+    const range = "Hoja1!A2:Z"
 
-    const { data } = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Hoja 1"
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range
     })
 
-    const rows = data.values
+    const rows = response.data.values || []
 
-    // ───────── Detectar semanas ─────────
-    const meses = rows[0].slice(1)
-    const semanas = rows[1].slice(1)
+    let currentMes = null
+    let saldoAcumulado = 0
+    const meses = {}
 
-    let currentSection = null
-    const semanasData = semanas.map((s, i) => ({
-      mes: meses[i],
-      semana: s,
-      ingresosDetalle: {},
-      egresosDetalle: {},
-      capexDetalle: {},
-      impuestosDetalle: {}
-    }))
+    rows.forEach(row => {
+      const semanaLabel = row[0]?.trim()
 
-    for (let i = 2; i < rows.length; i++) {
-      const [label, ...values] = rows[i]
-
-      if (!label) continue
-
-      if (label === "Detalle Ingresos") currentSection = "ingresosDetalle"
-      else if (label === "Detalle Egresos" || label === "OPEX") currentSection = "egresosDetalle"
-      else if (label === "CAPEX") currentSection = "capexDetalle"
-      else if (label === "Impuestos") currentSection = "impuestosDetalle"
-      else if (label.startsWith("Total") || label.startsWith("SALDO")) {
-        currentSection = null
-      } else if (currentSection) {
-        values.forEach((v, idx) => {
-          if (v && semanasData[idx]) {
-            semanasData[idx][currentSection][label] = v
-          }
-        })
+      if (["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].includes(semanaLabel)) {
+        currentMes = semanaLabel
+        if (!meses[currentMes]) meses[currentMes] = []
+        return
       }
-    }
 
-    res.status(200).json({ semanas: semanasData })
+      if (!currentMes) return
 
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: "Error leyendo Google Sheets" })
+      const ingresosDetalle = JSON.parse(row[1] || "{}")
+      const egresosDetalle = JSON.parse(row[2] || "{}")
+      const capexDetalle = JSON.parse(row[3] || "{}")
+      const impuestosDetalle = JSON.parse(row[4] || "{}")
+
+      const ingresos = sum(ingresosDetalle)
+      const opex = sum(egresosDetalle)
+      const capex = sum(capexDetalle)
+      const impuestos = sum(impuestosDetalle)
+
+      const saldo = ingresos - opex - capex - impuestos
+      saldoAcumulado += saldo
+
+      meses[currentMes].push({
+        semana: meses[currentMes].length + 1,
+        ingresos,
+        opex,
+        capex,
+        impuestos,
+        saldo,
+        saldoAcumulado
+      })
+    })
+
+    res.status(200).json({ meses })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "Error procesando Google Sheets" })
   }
 }
