@@ -2,11 +2,11 @@ import { google } from "googleapis"
 
 function parseCLP(value) {
   if (!value) return 0
-  return Number(value.replace(/[^\d-]/g, ""))
+  return Number(String(value).replace(/[^\d-]/g, ""))
 }
 
-function sum(obj = {}) {
-  return Object.values(obj).reduce((a, v) => a + parseCLP(v), 0)
+function sumObject(obj = {}) {
+  return Object.values(obj).reduce((acc, val) => acc + parseCLP(val), 0)
 }
 
 export default async function handler(req, res) {
@@ -20,12 +20,9 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: "v4", auth })
 
-    const sheetId = process.env.SHEET_ID
-    const range = "Hoja1!A2:Z"
-
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range
+      spreadsheetId: process.env.SHEET_ID,
+      range: "Hoja1!A2:Z"
     })
 
     const rows = response.data.values || []
@@ -35,25 +32,31 @@ export default async function handler(req, res) {
     const meses = {}
 
     rows.forEach(row => {
-      const semanaLabel = row[0]?.trim()
+      const label = row[0]?.trim()
 
-      if (["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].includes(semanaLabel)) {
-        currentMes = semanaLabel
+      // Detecta mes
+      if (
+        [
+          "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+          "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+        ].includes(label)
+      ) {
+        currentMes = label
         if (!meses[currentMes]) meses[currentMes] = []
         return
       }
 
       if (!currentMes) return
 
-      const ingresosDetalle = JSON.parse(row[1] || "{}")
-      const egresosDetalle = JSON.parse(row[2] || "{}")
-      const capexDetalle = JSON.parse(row[3] || "{}")
-      const impuestosDetalle = JSON.parse(row[4] || "{}")
+      const ingresosDetalle = row[1] || {}
+      const egresosDetalle = row[2] || {}
+      const capexDetalle = row[3] || {}
+      const impuestosDetalle = row[4] || {}
 
-      const ingresos = sum(ingresosDetalle)
-      const opex = sum(egresosDetalle)
-      const capex = sum(capexDetalle)
-      const impuestos = sum(impuestosDetalle)
+      const ingresos = sumObject(ingresosDetalle)
+      const opex = sumObject(egresosDetalle)
+      const capex = sumObject(capexDetalle)
+      const impuestos = sumObject(impuestosDetalle)
 
       const saldo = ingresos - opex - capex - impuestos
       saldoAcumulado += saldo
@@ -70,8 +73,9 @@ export default async function handler(req, res) {
     })
 
     res.status(200).json({ meses })
+
   } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: "Error procesando Google Sheets" })
+    console.error("Sheets error:", error)
+    res.status(500).json({ error: error.message })
   }
 }
