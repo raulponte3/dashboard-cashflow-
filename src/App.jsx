@@ -1,84 +1,204 @@
-import { useEffect, useState } from 'react'
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  ResponsiveContainer,
-  BarChart,
-  Bar
-} from 'recharts'
+import { useEffect, useState } from "react"
+
+const formatCLP = (n) =>
+  n.toLocaleString("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0
+  })
 
 export default function App() {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState(null)
+  const [selectedWeek, setSelectedWeek] = useState("ALL")
 
   useEffect(() => {
-    fetch('/api/sheets')
+    fetch("/api/sheets")
       .then(res => res.json())
       .then(setData)
-      .finally(() => setLoading(false))
+      .catch(console.error)
   }, [])
 
-  if (loading) {
-    return <div className="p-10">Cargando dashboard…</div>
+  if (!data) return <div style={styles.loading}>Cargando dashboard…</div>
+
+  const semanas = data.semanas
+
+  // ─────────────────────────────
+  // Filtro por semana
+  // ─────────────────────────────
+  const filteredWeeks =
+    selectedWeek === "ALL"
+      ? semanas
+      : semanas.filter(s => s.semana === selectedWeek)
+
+  const sum = (key) =>
+    filteredWeeks.reduce((acc, w) => acc + (w[key] || 0), 0)
+
+  const ingresos = sum("ingresos")
+  const egresos = sum("egresos")
+  const saldo = sum("saldo")
+
+  // ─────────────────────────────
+  // FORECAST (promedio últimas 4 semanas)
+  // ─────────────────────────────
+  const lastWeeks = semanas.slice(-4)
+
+  const avg = (key) =>
+    Math.round(
+      lastWeeks.reduce((a, b) => a + b[key], 0) / lastWeeks.length
+    )
+
+  const forecast = {
+    ingresos: avg("ingresos"),
+    egresos: avg("egresos"),
+    saldo: avg("ingresos") - avg("egresos")
   }
 
-  const totalIngresos = data.reduce((a, b) => a + b.ingresos, 0)
-  const totalEgresos = data.reduce((a, b) => a + b.egresos, 0)
-  const saldoFinal = data.at(-1)?.saldoFinal ?? 0
-
-  const money = v => '$' + v.toLocaleString('es-CL')
-
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">Cashflow Dashboard</h1>
+    <div style={styles.page}>
+      <h1>📊 Dashboard Flujo de Caja</h1>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-xl shadow">
-            <p className="text-sm text-gray-500">Ingresos</p>
-            <p className="text-xl font-bold">{money(totalIngresos)}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow">
-            <p className="text-sm text-gray-500">Egresos</p>
-            <p className="text-xl font-bold">{money(totalEgresos)}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow">
-            <p className="text-sm text-gray-500">Saldo Final</p>
-            <p className="text-xl font-bold">{money(saldoFinal)}</p>
-          </div>
-        </div>
+      {/* Selector */}
+      <div style={styles.selector}>
+        <label>Semana:</label>
+        <select
+          value={selectedWeek}
+          onChange={(e) => setSelectedWeek(e.target.value)}
+        >
+          <option value="ALL">Todas</option>
+          {semanas.map(s => (
+            <option key={s.semana} value={s.semana}>
+              {s.semana}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {/* Cashflow */}
-        <div className="bg-white p-6 rounded-xl shadow">
-          <ResponsiveContainer width="100%" height={350}>
-            <AreaChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" />
-              <YAxis />
-              <Tooltip formatter={money} />
-              <Area dataKey="ingresos" stroke="#22c55e" fill="#bbf7d0" />
-              <Area dataKey="egresos" stroke="#ef4444" fill="#fecaca" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      {/* KPIs */}
+      <div style={styles.kpis}>
+        <KPI title="Ingresos" value={formatCLP(ingresos)} />
+        <KPI title="Egresos" value={formatCLP(egresos)} />
+        <KPI title="Saldo" value={formatCLP(saldo)} />
+        <KPI
+          title="Saldo Acumulado"
+          value={formatCLP(data.resumen.saldoAcumulado)}
+        />
+      </div>
 
-        {/* Resultado */}
-        <div className="bg-white p-6 rounded-xl shadow">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data}>
-              <XAxis dataKey="week" />
-              <YAxis />
-              <Tooltip formatter={money} />
-              <Bar dataKey="saldoNeto" fill="#6366f1" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Forecast */}
+      <h2>🔮 Forecast próxima semana</h2>
+      <div style={styles.kpis}>
+        <KPI title="Ingresos esperados" value={formatCLP(forecast.ingresos)} />
+        <KPI title="Egresos esperados" value={formatCLP(forecast.egresos)} />
+        <KPI title="Saldo proyectado" value={formatCLP(forecast.saldo)} />
+      </div>
+
+      {/* Rankings */}
+      <div style={styles.columns}>
+        <Ranking
+          title="Top Ingresos"
+          items={data.topIngresos}
+          positive
+        />
+        <Ranking
+          title="Top Egresos"
+          items={data.topEgresos}
+        />
       </div>
     </div>
   )
+}
+
+// ─────────────────────────────
+// COMPONENTES
+// ─────────────────────────────
+
+function KPI({ title, value }) {
+  return (
+    <div style={styles.kpi}>
+      <div style={styles.kpiTitle}>{title}</div>
+      <div style={styles.kpiValue}>{value}</div>
+    </div>
+  )
+}
+
+function Ranking({ title, items }) {
+  return (
+    <div style={styles.card}>
+      <h3>{title}</h3>
+      <ul style={styles.list}>
+        {items.map(i => (
+          <li key={i.categoria} style={styles.listItem}>
+            <span>{i.categoria}</span>
+            <strong>{formatCLP(i.monto)}</strong>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ─────────────────────────────
+// STYLES
+// ─────────────────────────────
+
+const styles = {
+  page: {
+    padding: "24px",
+    fontFamily: "system-ui",
+    background: "#f5f7fa",
+    minHeight: "100vh"
+  },
+  loading: {
+    padding: 40,
+    fontSize: 18
+  },
+  selector: {
+    marginBottom: 20,
+    display: "flex",
+    gap: 12,
+    alignItems: "center"
+  },
+  kpis: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: 16,
+    marginBottom: 32
+  },
+  kpi: {
+    background: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+  },
+  kpiTitle: {
+    fontSize: 14,
+    color: "#555"
+  },
+  kpiValue: {
+    fontSize: 22,
+    fontWeight: 700,
+    marginTop: 8
+  },
+  columns: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 24
+  },
+  card: {
+    background: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+  },
+  list: {
+    listStyle: "none",
+    padding: 0,
+    margin: 0
+  },
+  listItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "8px 0",
+    borderBottom: "1px solid #eee"
+  }
 }
