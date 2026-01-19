@@ -7,19 +7,21 @@ export default function App() {
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
 
-  const loadData = async () => {
-    if (!sheetId) return;
+const loadData = async () => {
+  if (!sheetId) return;
 
-    try {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Hoja 1!A1:B2?key=${API_KEY}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Error cargando Google Sheet");
-      const json = await res.json();
-      setData(json.values || []);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
+  try {
+    const res = await fetch(`/api/sheets?sheetId=${sheetId}`);
+
+    if (!res.ok) throw new Error("Error cargando Google Sheet");
+
+    const json = await res.json();
+    setData(json.values || []);
+  } catch (e) {
+    setError(e.message);
+  }
+};
+;
 
   useEffect(() => {
     const i = setInterval(loadData, 300000);
