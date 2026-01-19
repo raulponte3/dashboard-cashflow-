@@ -1,4 +1,18 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
+
+/* ─────────────────────────────
+   Utils
+───────────────────────────── */
+const parseCLP = (v) => {
+  if (!v) return 0
+  if (typeof v === "number") return v
+  return Number(
+    v.replace(/\$/g, "")
+     .replace(/\./g, "")
+     .replace(/,/g, "")
+     .trim()
+  ) || 0
+}
 
 const formatCLP = (n) =>
   n.toLocaleString("es-CL", {
@@ -7,116 +21,137 @@ const formatCLP = (n) =>
     maximumFractionDigits: 0
   })
 
+/* ───────────────────────────── */
+
 export default function App() {
-  const [data, setData] = useState(null)
-  const [selectedWeek, setSelectedWeek] = useState("ALL")
+  const [raw, setRaw] = useState(null)
+  const [mes, setMes] = useState("ALL")
+  const [semana, setSemana] = useState("ALL")
 
   useEffect(() => {
     fetch("/api/sheets")
-      .then(res => res.json())
-      .then(setData)
-      .catch(console.error)
+      .then(r => r.json())
+      .then(setRaw)
   }, [])
 
-  if (!data) return <div style={styles.loading}>Cargando dashboard…</div>
+  if (!raw) return <div style={styles.loading}>Cargando…</div>
 
-  const semanas = data.semanas
+  /* ─────────────────────────────
+     Estructura esperada del backend
+     raw.semanas = [
+       {
+         mes: "Octubre",
+         semana: "Semana 2 (6-12)",
+         ingresosDetalle: { Mercadolibre: "$5.000.000", ... },
+         egresosDetalle: { Publicidad: "$2.455.084", ... },
+         capexDetalle: {...},
+         impuestosDetalle: {...}
+       }
+     ]
+  ───────────────────────────── */
 
-  // ─────────────────────────────
-  // Filtro por semana
-  // ─────────────────────────────
-  const filteredWeeks =
-    selectedWeek === "ALL"
-      ? semanas
-      : semanas.filter(s => s.semana === selectedWeek)
+  const meses = [...new Set(raw.semanas.map(s => s.mes))]
 
-  const sum = (key) =>
-    filteredWeeks.reduce((acc, w) => acc + (w[key] || 0), 0)
+  const semanasDisponibles = raw.semanas
+    .filter(s => mes === "ALL" || s.mes === mes)
+    .map(s => s.semana)
 
-  const ingresos = sum("ingresos")
-  const egresos = sum("egresos")
-  const saldo = sum("saldo")
+  const dataFiltrada = raw.semanas.filter(s =>
+    (mes === "ALL" || s.mes === mes) &&
+    (semana === "ALL" || s.semana === semana)
+  )
 
-  // ─────────────────────────────
-  // FORECAST (promedio últimas 4 semanas)
-  // ─────────────────────────────
-  const lastWeeks = semanas.slice(-4)
+  /* ─────────────────────────────
+     Cálculos reales
+  ───────────────────────────── */
+  const resumen = useMemo(() => {
+    let ingresos = 0
+    let egresos = 0
+    let capex = 0
+    let impuestos = 0
 
-  const avg = (key) =>
-    Math.round(
-      lastWeeks.reduce((a, b) => a + b[key], 0) / lastWeeks.length
-    )
+    const ingresosCat = {}
+    const egresosCat = {}
 
-  const forecast = {
-    ingresos: avg("ingresos"),
-    egresos: avg("egresos"),
-    saldo: avg("ingresos") - avg("egresos")
-  }
+    dataFiltrada.forEach(s => {
+      Object.entries(s.ingresosDetalle || {}).forEach(([k, v]) => {
+        const n = parseCLP(v)
+        ingresos += n
+        ingresosCat[k] = (ingresosCat[k] || 0) + n
+      })
 
+      Object.entries(s.egresosDetalle || {}).forEach(([k, v]) => {
+        const n = parseCLP(v)
+        egresos += n
+        egresosCat[k] = (egresosCat[k] || 0) + n
+      })
+
+      Object.values(s.capexDetalle || {}).forEach(v => capex += parseCLP(v))
+      Object.values(s.impuestosDetalle || {}).forEach(v => impuestos += parseCLP(v))
+    })
+
+    return {
+      ingresos,
+      egresos,
+      capex,
+      impuestos,
+      saldo: ingresos - egresos - capex - impuestos,
+      topIngresos: Object.entries(ingresosCat)
+        .map(([k, v]) => ({ categoria: k, monto: v }))
+        .sort((a, b) => b.monto - a.monto)
+        .slice(0, 5),
+      topEgresos: Object.entries(egresosCat)
+        .map(([k, v]) => ({ categoria: k, monto: v }))
+        .sort((a, b) => b.monto - a.monto)
+        .slice(0, 5)
+    }
+  }, [dataFiltrada])
+
+  /* ───────────────────────────── */
   return (
     <div style={styles.page}>
-      <h1>📊 Dashboard Flujo de Caja</h1>
+      <h1>Dashboard Flujo de Caja</h1>
 
-      {/* Selector */}
-      <div style={styles.selector}>
-        <label>Semana:</label>
-        <select
-          value={selectedWeek}
-          onChange={(e) => setSelectedWeek(e.target.value)}
-        >
-          <option value="ALL">Todas</option>
-          {semanas.map(s => (
-            <option key={s.semana} value={s.semana}>
-              {s.semana}
-            </option>
+      <div style={styles.filters}>
+        <select value={mes} onChange={e => {
+          setMes(e.target.value)
+          setSemana("ALL")
+        }}>
+          <option value="ALL">Todos los meses</option>
+          {meses.map(m => <option key={m}>{m}</option>)}
+        </select>
+
+        <select value={semana} onChange={e => setSemana(e.target.value)}>
+          <option value="ALL">Todas las semanas</option>
+          {semanasDisponibles.map(s => (
+            <option key={s}>{s}</option>
           ))}
         </select>
       </div>
 
-      {/* KPIs */}
       <div style={styles.kpis}>
-        <KPI title="Ingresos" value={formatCLP(ingresos)} />
-        <KPI title="Egresos" value={formatCLP(egresos)} />
-        <KPI title="Saldo" value={formatCLP(saldo)} />
-        <KPI
-          title="Saldo Acumulado"
-          value={formatCLP(data.resumen.saldoAcumulado)}
-        />
+        <KPI title="Ingresos" value={formatCLP(resumen.ingresos)} />
+        <KPI title="Egresos" value={formatCLP(resumen.egresos)} />
+        <KPI title="CAPEX" value={formatCLP(resumen.capex)} />
+        <KPI title="Impuestos" value={formatCLP(resumen.impuestos)} />
+        <KPI title="Saldo Neto" value={formatCLP(resumen.saldo)} />
       </div>
 
-      {/* Forecast */}
-      <h2>🔮 Forecast próxima semana</h2>
-      <div style={styles.kpis}>
-        <KPI title="Ingresos esperados" value={formatCLP(forecast.ingresos)} />
-        <KPI title="Egresos esperados" value={formatCLP(forecast.egresos)} />
-        <KPI title="Saldo proyectado" value={formatCLP(forecast.saldo)} />
-      </div>
-
-      {/* Rankings */}
       <div style={styles.columns}>
-        <Ranking
-          title="Top Ingresos"
-          items={data.topIngresos}
-          positive
-        />
-        <Ranking
-          title="Top Egresos"
-          items={data.topEgresos}
-        />
+        <Ranking title="Top Ingresos" items={resumen.topIngresos} />
+        <Ranking title="Top Egresos" items={resumen.topEgresos} />
       </div>
     </div>
   )
 }
 
-// ─────────────────────────────
-// COMPONENTES
-// ─────────────────────────────
+/* ───────────────────────────── */
 
 function KPI({ title, value }) {
   return (
     <div style={styles.kpi}>
-      <div style={styles.kpiTitle}>{title}</div>
-      <div style={styles.kpiValue}>{value}</div>
+      <div>{title}</div>
+      <strong>{value}</strong>
     </div>
   )
 }
@@ -125,80 +160,25 @@ function Ranking({ title, items }) {
   return (
     <div style={styles.card}>
       <h3>{title}</h3>
-      <ul style={styles.list}>
-        {items.map(i => (
-          <li key={i.categoria} style={styles.listItem}>
-            <span>{i.categoria}</span>
-            <strong>{formatCLP(i.monto)}</strong>
-          </li>
-        ))}
-      </ul>
+      {items.map(i => (
+        <div key={i.categoria} style={styles.row}>
+          <span>{i.categoria}</span>
+          <strong>{formatCLP(i.monto)}</strong>
+        </div>
+      ))}
     </div>
   )
 }
 
-// ─────────────────────────────
-// STYLES
-// ─────────────────────────────
+/* ───────────────────────────── */
 
 const styles = {
-  page: {
-    padding: "24px",
-    fontFamily: "system-ui",
-    background: "#f5f7fa",
-    minHeight: "100vh"
-  },
-  loading: {
-    padding: 40,
-    fontSize: 18
-  },
-  selector: {
-    marginBottom: 20,
-    display: "flex",
-    gap: 12,
-    alignItems: "center"
-  },
-  kpis: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: 16,
-    marginBottom: 32
-  },
-  kpi: {
-    background: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
-  },
-  kpiTitle: {
-    fontSize: 14,
-    color: "#555"
-  },
-  kpiValue: {
-    fontSize: 22,
-    fontWeight: 700,
-    marginTop: 8
-  },
-  columns: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 24
-  },
-  card: {
-    background: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
-  },
-  list: {
-    listStyle: "none",
-    padding: 0,
-    margin: 0
-  },
-  listItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "8px 0",
-    borderBottom: "1px solid #eee"
-  }
+  page: { padding: 24, fontFamily: "system-ui", background: "#f5f7fa" },
+  loading: { padding: 40 },
+  filters: { display: "flex", gap: 12, marginBottom: 20 },
+  kpis: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 16 },
+  kpi: { background: "#fff", padding: 16, borderRadius: 8 },
+  columns: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 24 },
+  card: { background: "#fff", padding: 20, borderRadius: 8 },
+  row: { display: "flex", justifyContent: "space-between", marginBottom: 8 }
 }
