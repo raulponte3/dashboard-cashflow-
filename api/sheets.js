@@ -10,149 +10,54 @@ export default async function handler(req, res) {
     )
 
     const sheets = google.sheets({ version: "v4", auth })
+
     const spreadsheetId = process.env.SPREADSHEET_ID
 
-    const response = await sheets.spreadsheets.values.get({
+    const { data } = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "Hoja 1!A1:Z300"
+      range: "Hoja 1"
     })
 
-    const rows = response.data.values
+    const rows = data.values
 
-    const parseMoney = (v) =>
-      Number(
-        String(v || "0")
-          .replace(/\$/g, "")
-          .replace(/\./g, "")
-          .replace(/,/g, "")
-      )
+    // ───────── Detectar semanas ─────────
+    const meses = rows[0].slice(1)
+    const semanas = rows[1].slice(1)
 
-    const findRowIndex = (label) =>
-      rows.findIndex(r => r[0]?.toLowerCase().includes(label.toLowerCase()))
-
-    // ─────────────────────────────
-    // Semanas
-    // ─────────────────────────────
-    const semanas = rows[2].slice(1)
-
-    // ─────────────────────────────
-    // Totales
-    // ─────────────────────────────
-    const idxIngresos = findRowIndex("total ingresos")
-    const idxEgresos = findRowIndex("total egresos")
-    const idxSaldoFinal = findRowIndex("saldo final")
-
+    let currentSection = null
     const semanasData = semanas.map((s, i) => ({
+      mes: meses[i],
       semana: s,
-      ingresos: parseMoney(rows[idxIngresos]?.[i + 1]),
-      egresos: parseMoney(rows[idxEgresos]?.[i + 1]),
-      saldo: parseMoney(rows[idxSaldoFinal]?.[i + 1])
+      ingresosDetalle: {},
+      egresosDetalle: {},
+      capexDetalle: {},
+      impuestosDetalle: {}
     }))
 
-    // ─────────────────────────────
-    // Acumulados
-    // ─────────────────────────────
-    const totalIngresos = semanasData.reduce((a, b) => a + b.ingresos, 0)
-    const totalEgresos = semanasData.reduce((a, b) => a + b.egresos, 0)
+    for (let i = 2; i < rows.length; i++) {
+      const [label, ...values] = rows[i]
 
-    // ─────────────────────────────
-    // OPEX / CAPEX / IMPUESTOS
-    // ─────────────────────────────
-    const idxOpex = findRowIndex("opex")
-    const idxCapex = findRowIndex("capex")
-    const idxImpuestos = findRowIndex("impuesto")
+      if (!label) continue
 
-    const sumSection = (startIdx) => {
-      let sum = 0
-      for (let i = startIdx + 1; i < rows.length; i++) {
-        if (!rows[i][0]) break
-        for (let c = 1; c < semanas.length + 1; c++) {
-          sum += parseMoney(rows[i][c])
-        }
-      }
-      return sum
-    }
-
-    const totalOpex = idxOpex !== -1 ? sumSection(idxOpex) : 0
-    const totalCapex = idxCapex !== -1 ? sumSection(idxCapex) : 0
-    const totalImpuestos = idxImpuestos !== -1 ? sumSection(idxImpuestos) : 0
-
-    // ─────────────────────────────
-    // Top Ingresos
-    // ─────────────────────────────
-    const idxDetalleIngresos = findRowIndex("detalle ingresos")
-    const idxTotalIngresos = idxIngresos
-
-    const ingresosMap = {}
-
-    for (let i = idxDetalleIngresos + 1; i < idxTotalIngresos; i++) {
-      const categoria = rows[i][0]
-      if (!categoria) continue
-
-      let sum = 0
-      for (let c = 1; c < semanas.length + 1; c++) {
-        sum += parseMoney(rows[i][c])
-      }
-
-      if (sum > 0) ingresosMap[categoria] = sum
-    }
-
-    const topIngresos = Object.entries(ingresosMap)
-      .map(([categoria, monto]) => ({ categoria, monto }))
-      .sort((a, b) => b.monto - a.monto)
-      .slice(0, 5)
-
-    // ─────────────────────────────
-    // Top Egresos (OPEX + CAPEX)
-    // ─────────────────────────────
-    const egresosMap = {}
-
-    const processEgresos = (startIdx) => {
-      for (let i = startIdx + 1; i < rows.length; i++) {
-        const categoria = rows[i][0]
-        if (!categoria) break
-
-        let sum = 0
-        for (let c = 1; c < semanas.length + 1; c++) {
-          sum += parseMoney(rows[i][c])
-        }
-
-        if (sum > 0) {
-          egresosMap[categoria] = (egresosMap[categoria] || 0) + sum
-        }
+      if (label === "Detalle Ingresos") currentSection = "ingresosDetalle"
+      else if (label === "Detalle Egresos" || label === "OPEX") currentSection = "egresosDetalle"
+      else if (label === "CAPEX") currentSection = "capexDetalle"
+      else if (label === "Impuestos") currentSection = "impuestosDetalle"
+      else if (label.startsWith("Total") || label.startsWith("SALDO")) {
+        currentSection = null
+      } else if (currentSection) {
+        values.forEach((v, idx) => {
+          if (v && semanasData[idx]) {
+            semanasData[idx][currentSection][label] = v
+          }
+        })
       }
     }
 
-    if (idxOpex !== -1) processEgresos(idxOpex)
-    if (idxCapex !== -1) processEgresos(idxCapex)
+    res.status(200).json({ semanas: semanasData })
 
-    const topEgresos = Object.entries(egresosMap)
-      .map(([categoria, monto]) => ({ categoria, monto }))
-      .sort((a, b) => b.monto - a.monto)
-      .slice(0, 5)
-
-    // ─────────────────────────────
-    // Resumen final
-    // ─────────────────────────────
-    const saldoNeto = totalIngresos - totalEgresos
-    const saldoAcumulado = semanasData[semanasData.length - 1]?.saldo || 0
-
-    res.status(200).json({
-      resumen: {
-        totalIngresos,
-        totalOpex,
-        totalCapex,
-        totalImpuestos,
-        saldoNeto,
-        saldoAcumulado
-      },
-      semanas: semanasData,
-      topIngresos,
-      topEgresos
-    })
-
-  } catch (error) {
-    console.error(error)
+  } catch (err) {
+    console.error(err)
     res.status(500).json({ error: "Error leyendo Google Sheets" })
   }
 }
