@@ -1,55 +1,72 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-const API_KEY = import.meta.env.VITE_GOOGLE_SHEETS_API_KEY;
-
-export default function App() {
+function App() {
   const [sheetId, setSheetId] = useState("");
   const [data, setData] = useState([]);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-const loadData = async () => {
-  if (!sheetId) return;
+  const loadData = async () => {
+    if (!sheetId) {
+      setError("Debes ingresar un Sheet ID");
+      return;
+    }
 
-  try {
-    const res = await fetch(`/api/sheets?sheetId=${sheetId}`);
+    setLoading(true);
+    setError("");
 
-    if (!res.ok) throw new Error("Error cargando Google Sheet");
+    try {
+      const res = await fetch(`/api/sheets?sheetId=${sheetId}`);
 
-    const json = await res.json();
-    setData(json.values || []);
-  } catch (e) {
-    setError(e.message);
-  }
-};
-;
+      if (!res.ok) {
+        throw new Error("Error al cargar los datos");
+      }
 
-  useEffect(() => {
-    const i = setInterval(loadData, 300000);
-    return () => clearInterval(i);
-  }, [sheetId]);
+      const json = await res.json();
+      setData(json.values || []);
+    } catch (err) {
+      setError(err.message || "Error desconocido");
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+    <div style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
+      <h1>Dashboard</h1>
 
-      <input
-        className="border p-2 mr-2"
-        placeholder="Sheet ID"
-        onChange={(e) => setSheetId(e.target.value)}
-      />
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="Sheet ID"
+          value={sheetId}
+          onChange={(e) => setSheetId(e.target.value)}
+          style={{ padding: 8, width: 320, marginRight: 8 }}
+        />
 
-      <button
-        className="bg-blue-600 text-white px-4 py-2 rounded"
-        onClick={loadData}
+        <button onClick={loadData} style={{ padding: "8px 16px" }}>
+          Cargar
+        </button>
+      </div>
+
+      {loading && <p>Cargando...</p>}
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      <pre
+        style={{
+          background: "#f5f5f5",
+          padding: 16,
+          borderRadius: 4,
+          maxHeight: 400,
+          overflow: "auto"
+        }}
       >
-        Cargar
-      </button>
-
-      {error && <p className="text-red-600 mt-2">{error}</p>}
-
-      <pre className="mt-4 bg-gray-100 p-4 rounded">
         {JSON.stringify(data, null, 2)}
       </pre>
     </div>
   );
 }
+
+export default App;
