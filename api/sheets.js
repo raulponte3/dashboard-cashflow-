@@ -1,32 +1,35 @@
-import { google } from "googleapis";
+import { google } from 'googleapis'
 
 export default async function handler(req, res) {
   try {
-    const { sheetId, range = "Hoja 1!A1:Z100" } = req.query;
-
-    if (!sheetId) {
-      return res.status(400).json({ error: "Missing sheetId" });
-    }
-
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
-
     const auth = new google.auth.JWT(
-      credentials.client_email,
+      process.env.GOOGLE_CLIENT_EMAIL,
       null,
-      credentials.private_key,
-      ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-    );
+      process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      ['https://www.googleapis.com/auth/spreadsheets.readonly']
+    )
 
-    const sheets = google.sheets({ version: "v4", auth });
+    const sheets = google.sheets({ version: 'v4', auth })
 
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range,
-    });
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: 'Hoja1!A2:E'
+    })
 
-    res.status(200).json(response.data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to load sheet" });
+    const rows = response.data.values || []
+
+    const parsed = rows.map(r => ({
+      week: r[0],
+      ingresos: Number(r[1] || 0),
+      egresos: Number(r[2] || 0),
+      saldoInicial: Number(r[3] || 0),
+      saldoFinal: Number(r[4] || 0),
+      saldoNeto: Number(r[1] || 0) - Number(r[2] || 0)
+    }))
+
+    res.status(200).json(parsed)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Error leyendo Google Sheets' })
   }
 }
