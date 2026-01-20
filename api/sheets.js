@@ -27,22 +27,11 @@ export default async function handler(req, res) {
     if (!rows || rows.length === 0) {
       return res.status(200).json({ 
         meses: {}, 
-        error: "No se encontraron datos en el sheet",
-        debug: {
-          totalRows: 0
-        }
+        error: "No se encontraron datos en el sheet"
       });
     }
 
-    // DEBUG: Mostrar las primeras filas para ver la estructura
-    const debugInfo = {
-      totalRows: rows.length,
-      firstRow: rows[0],
-      secondRow: rows[1],
-      rowsWithData: []
-    };
-
-    // Encontrar las filas clave
+    // Encontrar las filas clave (buscar en más filas)
     let ingresosRow = -1;
     let opexRow = -1;
     let capexRow = -1;
@@ -50,17 +39,8 @@ export default async function handler(req, res) {
     let saldoNetoRow = -1;
     let saldoAcumRow = -1;
 
-    for (let i = 0; i < Math.min(rows.length, 50); i++) {
+    for (let i = 0; i < rows.length; i++) {
       const firstCell = rows[i][0];
-      
-      // Guardar info de debug
-      if (firstCell && firstCell.trim()) {
-        debugInfo.rowsWithData.push({
-          index: i,
-          firstCell: firstCell,
-          totalCells: rows[i].length
-        });
-      }
       
       if (firstCell === 'Total Ingresos') ingresosRow = i;
       if (firstCell === 'Total OPEX') opexRow = i;
@@ -70,62 +50,69 @@ export default async function handler(req, res) {
       if (firstCell === 'SALDO ACUMULADO') saldoAcumRow = i;
     }
 
-    debugInfo.foundRows = {
-      ingresosRow,
-      opexRow,
-      capexRow,
-      impuestosRow,
-      saldoNetoRow,
-      saldoAcumRow
-    };
+    // Si no encuentra SALDO NETO y SALDO ACUMULADO, buscar después de Total Impuestos
+    if (saldoNetoRow === -1 && impuestosRow > 0) {
+      // Buscar las siguientes 10 filas después de impuestos
+      for (let i = impuestosRow + 1; i < Math.min(impuestosRow + 10, rows.length); i++) {
+        const firstCell = rows[i][0];
+        if (firstCell === 'SALDO NETO') saldoNetoRow = i;
+        if (firstCell === 'SALDO ACUMULADO') saldoAcumRow = i;
+      }
+    }
 
-    if (ingresosRow === -1 || saldoAcumRow === -1) {
+    // Si aún no encuentra saldoNetoRow, buscar en todo el documento
+    if (saldoNetoRow === -1) {
+      for (let i = 0; i < rows.length; i++) {
+        const firstCell = rows[i][0];
+        if (firstCell && firstCell.includes('SALDO NETO')) saldoNetoRow = i;
+        if (firstCell && firstCell.includes('SALDO ACUMULADO')) saldoAcumRow = i;
+      }
+    }
+
+    if (ingresosRow === -1) {
       return res.status(200).json({ 
         meses: {},
-        error: "No se encontraron las filas necesarias",
-        debug: debugInfo
+        error: "No se encontró la fila 'Total Ingresos'"
       });
     }
 
-    // Headers están en la fila 1 (índice 1, porque fila 0 tiene los meses)
-    const headers = rows[1];
-    const monthsRow = rows[0];
-    
-    debugInfo.headers = headers;
-    debugInfo.monthsRow = monthsRow;
+    // Los meses están en la fila 1 (índice 1)
+    // Los headers de semana están en la fila 2 (índice 2)
+    const monthsRow = rows[1] || [];
+    const headersRow = rows[2] || [];
     
     const meses = {};
     let currentMonth = null;
 
     // Procesar cada columna a partir de la columna 1
-    for (let col = 1; col < Math.min(headers.length, 30); col++) {
+    for (let col = 1; col < Math.min(headersRow.length, 30); col++) {
       const monthName = monthsRow[col];
-      const weekName = headers[col];
+      const weekName = headersRow[col];
       
       // Si hay un nombre de mes nuevo, actualízalo
       if (monthName && monthName.trim()) {
         currentMonth = monthName.trim();
       }
       
-      // Si no hay semana o mes, saltar
-      if (!weekName || !weekName.trim() || !currentMonth) continue;
+      // Si no hay mes actual, saltar
+      if (!currentMonth) continue;
 
       const ingresos = cleanValue(rows[ingresosRow][col]);
-      const opex = cleanValue(rows[opexRow][col]);
-      const capex = cleanValue(rows[capexRow][col]);
-      const impuestos = cleanValue(rows[impuestosRow][col]);
-      const saldoNeto = cleanValue(rows[saldoNetoRow][col]);
-      const saldoAcum = cleanValue(rows[saldoAcumRow][col]);
+      const opex = opexRow > 0 ? cleanValue(rows[opexRow][col]) : 0;
+      const capex = capexRow > 0 ? cleanValue(rows[capexRow][col]) : 0;
+      const impuestos = impuestosRow > 0 ? cleanValue(rows[impuestosRow][col]) : 0;
+      const saldoNeto = saldoNetoRow > 0 ? cleanValue(rows[saldoNetoRow][col]) : (ingresos - opex - capex - impuestos);
+      const saldoAcum = saldoAcumRow > 0 ? cleanValue(rows[saldoAcumRow][col]) : 0;
 
       // Solo agregar si hay datos significativos
-      if (ingresos > 0 || opex > 0 || capex > 0 || Math.abs(saldoAcum) > 0) {
+      if (ingresos > 0 || opex > 0 || capex > 0 || Math.abs(saldoAcum) > 0 || Math.abs(saldoNeto) > 0) {
         if (!meses[currentMonth]) {
           meses[currentMonth] = [];
         }
 
         meses[currentMonth].push({
           semana: meses[currentMonth].length + 1,
-          weekName: weekName.trim(),
+          weekName: weekName ? weekName.trim() : `Semana ${meses[currentMonth].length + 1}`,
           ingresos,
           opex,
           capex,
@@ -136,18 +123,15 @@ export default async function handler(req, res) {
       }
     }
 
-    debugInfo.totalWeeksProcessed = Object.values(meses).reduce((sum, m) => sum + m.length, 0);
-
     res.status(200).json({ 
       meses,
-      debug: debugInfo
+      totalWeeks: Object.values(meses).reduce((sum, m) => sum + m.length, 0)
     });
 
   } catch (error) {
     console.error("Sheets error:", error);
     res.status(500).json({ 
       error: error.message,
-      errorStack: error.stack,
       meses: {}
     });
   }
