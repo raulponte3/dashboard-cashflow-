@@ -163,7 +163,7 @@ export default function App() {
             <p className="text-slate-600 mb-4">{error}</p>
           </div>
           <button onClick={loadDataFromSheet} className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            🔄 Reintentar
+            Reintentar
           </button>
         </div>
       </div>
@@ -180,17 +180,17 @@ export default function App() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => setShowDateSelector(!showDateSelector)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-              📅 {showDateSelector ? 'Ocultar' : 'Configurar'} Fecha
+              {showDateSelector ? 'Ocultar' : 'Configurar'} Fecha
             </button>
             <button onClick={loadDataFromSheet} disabled={loading} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400">
-              🔄 Recargar
+              Recargar
             </button>
           </div>
         </div>
 
         {showDateSelector && historicalData.length > 0 && (
           <div className="mb-8 bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">📅 Configurar Semana Actual</h3>
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">Configurar Semana Actual</h3>
             <select value={currentWeekIndex !== null ? currentWeekIndex : historicalData.length - 1} onChange={(e) => setCurrentWeekIndex(parseInt(e.target.value))} className="w-full px-4 py-2 border rounded-lg mb-4">
               {historicalData.map((item, idx) => (
                 <option key={idx} value={idx}>{item.week} - {formatCurrency(item.saldoAcum)}</option>
@@ -235,7 +235,7 @@ export default function App() {
           <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
             <p className="text-sm text-slate-600 mb-1">Semanas</p>
             <p className="text-2xl font-bold text-slate-800">{historicalData.length}</p>
-            <p className="text-xs text-slate-500 mt-1">✅ {realData.length} | 📊 {projectionData.length}</p>
+            <p className="text-xs text-slate-500 mt-1">{realData.length} reales | {projectionData.length} proyectadas</p>
           </div>
         </div>
 
@@ -270,71 +270,8 @@ export default function App() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" data={cashflowData} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tickFormatter={(v) => '
-
-            {activeTab === 'projections' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-green-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
-                  </div>
-                  <div className="bg-blue-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
-                  </div>
-                  <div className="bg-red-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
-                  </div>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={projectionData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="week" />
-                    <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                    <Tooltip formatter={(v) => formatCurrency(v)} />
-                    <Legend />
-                    <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos" />
-                    <Bar dataKey="egresos" fill="#fca5a5" name="Egresos" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {activeTab === 'composition' && (
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Ingresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie data={incomeComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
-                        {incomeComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie data={opexComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
-                        {opexComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
+                      <XAxis dataKey="week" allowDuplicatedCategory={false} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                      <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
                       <Legend />
                       <Area type="monotone" dataKey="saldoAcum" data={realData} stroke="#3b82f6" strokeWidth={3} fill="url(#colorSaldo)" name="Saldo Real" />
@@ -350,70 +287,7 @@ export default function App() {
                     <BarChart data={realData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tickFormatter={(v) => '
-
-            {activeTab === 'projections' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-green-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
-                  </div>
-                  <div className="bg-blue-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
-                  </div>
-                  <div className="bg-red-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
-                  </div>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={projectionData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="week" />
-                    <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                    <Tooltip formatter={(v) => formatCurrency(v)} />
-                    <Legend />
-                    <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos" />
-                    <Bar dataKey="egresos" fill="#fca5a5" name="Egresos" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {activeTab === 'composition' && (
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Ingresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie data={incomeComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
-                        {incomeComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie data={opexComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
-                        {opexComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
+                      <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
                       <Legend />
                       <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
@@ -428,15 +302,15 @@ export default function App() {
               <div className="space-y-6">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-green-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
+                    <h4 className="font-semibold text-green-800 mb-2">Optimista</h4>
                     <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
                   </div>
                   <div className="bg-blue-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
+                    <h4 className="font-semibold text-blue-800 mb-2">Base</h4>
                     <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
                   </div>
                   <div className="bg-red-50 border rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
+                    <h4 className="font-semibold text-red-800 mb-2">Pesimista</h4>
                     <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
                   </div>
                 </div>
