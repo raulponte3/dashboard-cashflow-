@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import Login from './Login';
+import AIRecommendations from './AIRecommendations';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -288,6 +289,9 @@ export default function App() {
             <button onClick={() => setActiveTab('composition')} className={'px-6 py-3 font-medium ' + (activeTab === 'composition' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-slate-600')}>
               Composición
             </button>
+            <button onClick={() => setActiveTab('ai')} className={'px-6 py-3 font-medium ' + (activeTab === 'ai' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-slate-600')}>
+              🤖 IA Insights
+            </button>
           </div>
 
           <div className="p-6">
@@ -391,6 +395,16 @@ export default function App() {
                   </ResponsiveContainer>
                 </div>
               </div>
+            )}
+
+            {activeTab === 'ai' && (
+              <AIRecommendations 
+                realData={realData}
+                projectionData={projectionData}
+                avgIngresos={avgIngresos}
+                avgEgresos={avgEgresos}
+                lastSaldo={lastSaldo}
+              />
             )}
           </div>
         </div>
