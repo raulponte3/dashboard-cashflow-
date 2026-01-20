@@ -4,14 +4,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini', // Modelo más económico pero muy bueno
+        model: 'llama-3.3-70b-versatile', // Modelo gratuito y muy potente
         messages: req.body.messages,
         max_tokens: 2000,
         temperature: 0.7
@@ -21,12 +21,12 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.error?.message || 'Error en la API de OpenAI');
+      throw new Error(data.error?.message || 'Error en la API de Groq');
     }
 
     res.status(200).json(data);
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('Groq API error:', error);
     res.status(500).json({ error: error.message });
   }
 }
