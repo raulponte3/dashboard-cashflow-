@@ -10,13 +10,11 @@ export default function AIRecommendations({ realData, projectionData, avgIngreso
     setError(null);
 
     try {
-      // Preparar datos para el análisis
       const weeksNegative = realData.filter(w => w.saldoNeto < 0).length;
       const totalIngresos = realData.reduce((sum, w) => sum + w.ingresos, 0);
       const totalEgresos = realData.reduce((sum, w) => sum + w.egresos, 0);
       const burnRate = avgEgresos - avgIngresos;
       
-      // Calcular tendencias
       const lastFiveWeeks = realData.slice(-5);
       const trendIngresos = lastFiveWeeks.length > 0 
         ? (lastFiveWeeks[lastFiveWeeks.length - 1].ingresos - lastFiveWeeks[0].ingresos) / lastFiveWeeks[0].ingresos * 100
@@ -38,15 +36,34 @@ DATOS FINANCIEROS:
 DATOS SEMANALES (últimas 8 semanas):
 ${realData.slice(-8).map(w => `${w.week}: Ingresos ${formatCurrency(w.ingresos)}, Egresos ${formatCurrency(w.egresos)}, Saldo Neto ${formatCurrency(w.saldoNeto)}`).join('\n')}
 
-Por favor proporciona:
+Por favor proporciona tu análisis en este formato EXACTO:
 
-1. **DIAGNÓSTICO** (2-3 líneas): Estado actual del flujo de caja
-2. **RIESGOS CRÍTICOS** (3 bullets): Principales amenazas detectadas
-3. **OPORTUNIDADES** (3 bullets): Áreas de mejora identificadas
-4. **ACCIONES INMEDIATAS** (5 bullets): Pasos concretos para esta semana
-5. **ESTRATEGIA 30 DÍAS** (3 bullets): Plan de acción para el próximo mes
+## 🔍 DIAGNÓSTICO
+[2-3 líneas sobre el estado actual]
 
-Sé específico con números y plazos. Responde en formato markdown limpio.`;
+## ⚠️ RIESGOS CRÍTICOS
+- [Riesgo 1]
+- [Riesgo 2]
+- [Riesgo 3]
+
+## 💡 OPORTUNIDADES
+- [Oportunidad 1]
+- [Oportunidad 2]
+- [Oportunidad 3]
+
+## 🎯 ACCIONES INMEDIATAS (Esta Semana)
+1. [Acción específica con números]
+2. [Acción específica con números]
+3. [Acción específica con números]
+4. [Acción específica con números]
+5. [Acción específica con números]
+
+## 📅 ESTRATEGIA 30 DÍAS
+- [Plan 1]
+- [Plan 2]
+- [Plan 3]
+
+Sé MUY específico con números, porcentajes y plazos concretos.`;
 
       const response = await fetch('/api/claude', {
         method: 'POST',
@@ -54,8 +71,6 @@ Sé específico con números y plazos. Responde en formato markdown limpio.`;
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 2000,
           messages: [
             { role: 'user', content: prompt }
           ]
@@ -63,11 +78,12 @@ Sé específico con números y plazos. Responde en formato markdown limpio.`;
       });
 
       if (!response.ok) {
-        throw new Error('Error al analizar con IA');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al analizar con IA');
       }
 
       const data = await response.json();
-      const analysis = data.content[0].text;
+      const analysis = data.choices[0].message.content;
       
       setRecommendations(analysis);
       
@@ -87,15 +103,25 @@ Sé específico con números y plazos. Responde en formato markdown limpio.`;
     }).format(value);
   };
 
+  const parseMarkdown = (text) => {
+    return text
+      .replace(/## (.*?)$/gm, '<h3 class="text-lg font-bold text-slate-900 mt-6 mb-3 flex items-center gap-2">$1</h3>')
+      .replace(/### (.*?)$/gm, '<h4 class="text-md font-semibold text-slate-800 mt-4 mb-2">$1</h4>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 font-semibold">$1</strong>')
+      .replace(/^\d+\.\s(.+)$/gm, '<li class="ml-6 mb-2 text-slate-700">$1</li>')
+      .replace(/^[-•]\s(.+)$/gm, '<li class="ml-6 mb-2 text-slate-700">$1</li>')
+      .replace(/\n\n/g, '<br/><br/>');
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+        <div className="flex-1">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             🤖 Análisis Inteligente con IA
           </h3>
           <p className="text-sm text-slate-600 mt-1">
-            Claude analizará tus datos y te dará recomendaciones personalizadas
+            GPT-4 analizará tus datos y te dará recomendaciones personalizadas
           </p>
         </div>
         <button
@@ -121,8 +147,7 @@ Sé específico con números y plazos. Responde en formato markdown limpio.`;
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <p className="text-sm text-red-700">❌ {error}</p>
           <p className="text-xs text-red-600 mt-2">
-            Nota: Esta función usa la API de Claude directamente desde el navegador. 
-            Asegúrate de tener configuradas las credenciales correctamente.
+            Asegúrate de haber configurado tu OPENAI_API_KEY en las variables de entorno de Vercel.
           </p>
         </div>
       )}
@@ -134,24 +159,23 @@ Sé específico con números y plazos. Responde en formato markdown limpio.`;
             <h4 className="text-lg font-semibold text-slate-800">Recomendaciones Personalizadas</h4>
           </div>
           
-          <div className="prose prose-sm max-w-none">
-            <div 
-              className="text-slate-700 space-y-4"
-              dangerouslySetInnerHTML={{ 
-                __html: recommendations
-                  .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900">$1</strong>')
-                  .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
-                  .replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>')
-                  .replace(/\n\n/g, '</p><p class="mt-3">')
-                  .replace(/^(.+)$/gm, '<p>$1</p>')
-              }}
-            />
-          </div>
+          <div 
+            className="prose prose-sm max-w-none text-slate-700"
+            dangerouslySetInnerHTML={{ 
+              __html: parseMarkdown(recommendations)
+            }}
+          />
 
-          <div className="mt-6 pt-4 border-t border-blue-200">
+          <div className="mt-6 pt-4 border-t border-blue-200 flex items-center justify-between">
             <p className="text-xs text-slate-500 italic">
-              💡 Análisis generado por Claude AI basado en tus datos reales del {realData[0]?.week} al {realData[realData.length - 1]?.week}
+              💡 Análisis generado por GPT-4 basado en {realData.length} semanas de datos ({realData[0]?.week} al {realData[realData.length - 1]?.week})
             </p>
+            <button
+              onClick={analyzeWithAI}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+            >
+              🔄 Actualizar análisis
+            </button>
           </div>
         </div>
       )}
@@ -160,17 +184,33 @@ Sé específico con números y plazos. Responde en formato markdown limpio.`;
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
           <div className="text-6xl mb-4">🧠</div>
           <h4 className="text-lg font-semibold text-slate-800 mb-2">
-            Obtén insights personalizados
+            Obtén insights personalizados con IA
           </h4>
           <p className="text-sm text-slate-600 mb-4">
-            Claude analizará tus {realData.length} semanas de datos y te dará recomendaciones específicas para mejorar tu flujo de caja
+            GPT-4 analizará tus {realData.length} semanas de datos y te dará recomendaciones específicas
           </p>
-          <ul className="text-xs text-slate-500 text-left max-w-md mx-auto space-y-2">
-            <li>✓ Identifica patrones y tendencias ocultas</li>
-            <li>✓ Detecta riesgos críticos antes de que sea tarde</li>
-            <li>✓ Sugiere acciones concretas y priorizadas</li>
-            <li>✓ Proyecta escenarios futuros basados en tu historial</li>
-          </ul>
+          <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto mt-6">
+            <div className="bg-white p-4 rounded-lg border border-slate-200">
+              <div className="text-2xl mb-2">🔍</div>
+              <h5 className="font-semibold text-sm text-slate-800 mb-1">Identifica Patrones</h5>
+              <p className="text-xs text-slate-600">Descubre tendencias ocultas en tus datos</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg border border-slate-200">
+              <div className="text-2xl mb-2">⚠️</div>
+              <h5 className="font-semibold text-sm text-slate-800 mb-1">Detecta Riesgos</h5>
+              <p className="text-xs text-slate-600">Anticipa problemas antes de que ocurran</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg border border-slate-200">
+              <div className="text-2xl mb-2">🎯</div>
+              <h5 className="font-semibold text-sm text-slate-800 mb-1">Acciones Concretas</h5>
+              <p className="text-xs text-slate-600">Pasos específicos priorizados</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg border border-slate-200">
+              <div className="text-2xl mb-2">📈</div>
+              <h5 className="font-semibold text-sm text-slate-800 mb-1">Estrategia 30 Días</h5>
+              <p className="text-xs text-slate-600">Plan de acción mensual personalizado</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
