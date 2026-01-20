@@ -34,7 +34,6 @@ export default function App() {
       const processedData = processSheetData(data.meses);
       setHistoricalData(processedData);
       
-      // Por defecto, establecer la semana actual como la última con datos
       if (processedData.length > 0 && currentWeekIndex === null) {
         setCurrentWeekIndex(processedData.length - 1);
       }
@@ -49,7 +48,6 @@ export default function App() {
   const processSheetData = (mesesData) => {
     const data = [];
     
-    // Mapeo de nombres de meses a abreviaturas
     const monthMap = {
       'Octubre': 'Oct',
       'Noviembre': 'Nov',
@@ -91,7 +89,6 @@ export default function App() {
     }).format(value);
   };
 
-  // Separar datos reales de proyectados según currentWeekIndex
   const realData = currentWeekIndex !== null ? historicalData.slice(0, currentWeekIndex + 1) : historicalData;
   const projectedDataFromSheet = currentWeekIndex !== null ? historicalData.slice(currentWeekIndex + 1) : [];
 
@@ -108,7 +105,6 @@ export default function App() {
     const months = ['Mar', 'Abr', 'May', 'Jun'];
     let currentSaldo = lastSaldo;
     
-    // Primero agregar las proyecciones que están en el sheet
     projectedDataFromSheet.forEach(item => {
       projectionData.push({
         ...item,
@@ -117,7 +113,6 @@ export default function App() {
       currentSaldo = item.saldoAcum;
     });
     
-    // Luego agregar proyecciones calculadas automáticamente
     const weeksToProject = Math.max(0, 12 - projectedDataFromSheet.length);
     let weekCounter = 0;
     
@@ -329,8 +324,8 @@ export default function App() {
 
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                💡 <strong>Tip:</strong> Las proyecciones ingresadas en el Google Sheet (color morado) se mostrarán primero. 
-                Luego se agregarán proyecciones automáticas (color verde) basadas en tus promedios históricos.
+                💡 <strong>Tip:</strong> Las proyecciones ingresadas en el Google Sheet se mostrarán primero. 
+                Luego se agregarán proyecciones automáticas basadas en tus promedios históricos.
               </p>
             </div>
           </div>
@@ -401,12 +396,12 @@ export default function App() {
           <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 mb-1">Semanas de Datos</p>
+                <p className="text-sm text-slate-600 mb-1">Semanas Totales</p>
                 <p className="text-2xl font-bold text-slate-800">
                   {historicalData.length}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  ✅ Sincronizado
+                  ✅ {realData.length} reales | 📊 {projectionData.length} proyectadas
                 </p>
               </div>
               <span className="text-4xl">🎯</span>
@@ -461,7 +456,35 @@ export default function App() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '
+                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
+                      <Tooltip 
+                        formatter={(v) => formatCurrency(v)}
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="saldoAcum" 
+                        data={realData}
+                        stroke="#3b82f6" 
+                        strokeWidth={3} 
+                        fill="url(#colorSaldo)"
+                        name="Saldo Real"
+                      />
+                      {showProjections && projectionData.length > 0 && (
+                        <Area 
+                          type="monotone" 
+                          dataKey="saldoAcum" 
+                          data={[realData[realData.length - 1], ...projectionData]}
+                          stroke="#8b5cf6" 
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          fill="url(#colorSaldoProjected)"
+                          name="Proyección"
+                        />
+                      )}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
 
                 <div>
                   <h3 className="text-lg font-semibold text-slate-800 mb-4">Ingresos vs Egresos</h3>
@@ -469,77 +492,7 @@ export default function App() {
                     <BarChart data={realData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '
-              </div>
-            )}
-
-            {activeTab === 'projections' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
-                    <p className="text-sm text-green-700 mb-2">Ingresos +20%, Egresos -10%</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
-                    <p className="text-sm text-blue-700 mb-2">Ingresos -15%, Egresos estables</p>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
-                  </div>
-                  
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
-                    <p className="text-sm text-red-700 mb-2">Ingresos -30%, Egresos +10%</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos 3 Meses</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={projectionData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 12 }} />
                       <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos Proyectados" />
-                      <Bar dataKey="egresos" fill="#fca5a5" name="Egresos Proyectados" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-yellow-800 mb-3">💡 Acciones Recomendadas</h4>
-                  <ul className="text-sm text-yellow-700 space-y-2 ml-4 list-disc">
-                    <li><strong>Semana 1-2:</strong> Acelerar cobros de MercadoLibre y Walmart</li>
-                    <li><strong>Semana 3-4:</strong> Postergar compras grandes hasta mejorar liquidez</li>
-                    <li><strong>Semana 5-8:</strong> Negociar pagos fraccionados con proveedores</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'composition' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición Ingresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={incomeComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {incomeComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
                       <Tooltip formatter={(v) => formatCurrency(v)} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -577,124 +530,7 @@ export default function App() {
                     <BarChart data={realData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Ingreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgIngresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Egreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgEgresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Margen Neto</p>
-                    <p className={'text-xl font-bold ' + ((avgIngresos - avgEgresos) >= 0 ? 'text-green-600' : 'text-red-600')}>
-                      {formatCurrency(avgIngresos - avgEgresos)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    ⚠️ Puntos Críticos
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
-                    <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {realData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Plan de Acción Prioritario</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-              <h4 className="font-semibold text-red-800 mb-2">🚨 URGENTE</h4>
-              <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
-                <li>Buscar línea de crédito adicional</li>
-                <li>Negociar aplazamiento de préstamos</li>
-                <li>Acelerar cobros pendientes</li>
-              </ul>
-            </div>
-            
-            <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-4">
-              <h4 className="font-semibold text-orange-800 mb-2">⚠️ IMPORTANTE</h4>
-              <ul className="text-sm text-orange-700 space-y-1 ml-4 list-disc">
-                <li>Fraccionar compras de mercancía</li>
-                <li>Renegociar con proveedores</li>
-                <li>Reducir publicidad 20%</li>
-              </ul>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📊 ESTRATÉGICO</h4>
-              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Crecer Walmart y Falabella 50%</li>
-                <li>Colchón mínimo $5M</li>
-                <li>Optimizar logística</li>
-              </ul>
-            </div>
-            
-            <div className="bg-green-50 border border-green-500 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">💡 CONTINUO</h4>
-              <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                <li>Actualizar Google Sheet cada lunes</li>
-                <li>Revisar alertas semanalmente</li>
-                <li>Analizar ROI mensualmente</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip 
-                        formatter={(v) => formatCurrency(v)}
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      />
-                      {/* Línea de datos reales */}
-                      <Area 
-                        type="monotone" 
-                        dataKey="saldoAcum" 
-                        data={realData}
-                        stroke="#3b82f6" 
-                        strokeWidth={3} 
-                        fill="url(#colorSaldo)"
-                        name="Saldo Real"
-                      />
-                      {/* Línea de proyecciones */}
-                      {showProjections && projectionData.length > 0 && (
-                        <Area 
-                          type="monotone" 
-                          dataKey="saldoAcum" 
-                          data={[realData[realData.length - 1], ...projectionData]}
-                          stroke="#8b5cf6" 
-                          strokeWidth={2}
-                          strokeDasharray="5 5"
-                          fill="url(#colorSaldoProjected)"
-                          name="Proyección"
-                        />
-                      )}
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Ingresos vs Egresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
+                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => 'Currency(v)} />
                       <Legend />
                       <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
                       <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
@@ -727,7 +563,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos 3 Meses</h3>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos Meses</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={projectionData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -771,573 +607,7 @@ export default function App() {
                           <Cell key={idx} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={opexComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {opexComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'analysis' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Saldo Neto Semanal</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Bar dataKey="saldoNeto" name="Saldo Neto">
-                        {historicalData.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.saldoNeto >= 0 ? '#10b981' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Ingreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgIngresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Egreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgEgresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Margen Neto</p>
-                    <p className={'text-xl font-bold ' + ((avgIngresos - avgEgresos) >= 0 ? 'text-green-600' : 'text-red-600')}>
-                      {formatCurrency(avgIngresos - avgEgresos)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    ⚠️ Puntos Críticos
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
-                    <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {historicalData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Plan de Acción Prioritario</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-              <h4 className="font-semibold text-red-800 mb-2">🚨 URGENTE</h4>
-              <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
-                <li>Buscar línea de crédito adicional</li>
-                <li>Negociar aplazamiento de préstamos</li>
-                <li>Acelerar cobros pendientes</li>
-              </ul>
-            </div>
-            
-            <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-4">
-              <h4 className="font-semibold text-orange-800 mb-2">⚠️ IMPORTANTE</h4>
-              <ul className="text-sm text-orange-700 space-y-1 ml-4 list-disc">
-                <li>Fraccionar compras de mercancía</li>
-                <li>Renegociar con proveedores</li>
-                <li>Reducir publicidad 20%</li>
-              </ul>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📊 ESTRATÉGICO</h4>
-              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Crecer Walmart y Falabella 50%</li>
-                <li>Colchón mínimo $5M</li>
-                <li>Optimizar logística</li>
-              </ul>
-            </div>
-            
-            <div className="bg-green-50 border border-green-500 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">💡 CONTINUO</h4>
-              <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                <li>Actualizar Google Sheet cada lunes</li>
-                <li>Revisar alertas semanalmente</li>
-                <li>Analizar ROI mensualmente</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
-                      <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'projections' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
-                    <p className="text-sm text-green-700 mb-2">Ingresos +20%, Egresos -10%</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
-                    <p className="text-sm text-blue-700 mb-2">Ingresos -15%, Egresos estables</p>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
-                  </div>
-                  
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
-                    <p className="text-sm text-red-700 mb-2">Ingresos -30%, Egresos +10%</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos 3 Meses</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={projectionData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 12 }} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos Proyectados" />
-                      <Bar dataKey="egresos" fill="#fca5a5" name="Egresos Proyectados" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-yellow-800 mb-3">💡 Acciones Recomendadas</h4>
-                  <ul className="text-sm text-yellow-700 space-y-2 ml-4 list-disc">
-                    <li><strong>Semana 1-2:</strong> Acelerar cobros de MercadoLibre y Walmart</li>
-                    <li><strong>Semana 3-4:</strong> Postergar compras grandes hasta mejorar liquidez</li>
-                    <li><strong>Semana 5-8:</strong> Negociar pagos fraccionados con proveedores</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'composition' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición Ingresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={incomeComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {incomeComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={opexComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {opexComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'analysis' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Saldo Neto Semanal</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Bar dataKey="saldoNeto" name="Saldo Neto">
-                        {historicalData.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.saldoNeto >= 0 ? '#10b981' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Ingreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgIngresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Egreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgEgresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Margen Neto</p>
-                    <p className={'text-xl font-bold ' + ((avgIngresos - avgEgresos) >= 0 ? 'text-green-600' : 'text-red-600')}>
-                      {formatCurrency(avgIngresos - avgEgresos)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    ⚠️ Puntos Críticos
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
-                    <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {historicalData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Plan de Acción Prioritario</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-              <h4 className="font-semibold text-red-800 mb-2">🚨 URGENTE</h4>
-              <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
-                <li>Buscar línea de crédito adicional</li>
-                <li>Negociar aplazamiento de préstamos</li>
-                <li>Acelerar cobros pendientes</li>
-              </ul>
-            </div>
-            
-            <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-4">
-              <h4 className="font-semibold text-orange-800 mb-2">⚠️ IMPORTANTE</h4>
-              <ul className="text-sm text-orange-700 space-y-1 ml-4 list-disc">
-                <li>Fraccionar compras de mercancía</li>
-                <li>Renegociar con proveedores</li>
-                <li>Reducir publicidad 20%</li>
-              </ul>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📊 ESTRATÉGICO</h4>
-              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Crecer Walmart y Falabella 50%</li>
-                <li>Colchón mínimo $5M</li>
-                <li>Optimizar logística</li>
-              </ul>
-            </div>
-            
-            <div className="bg-green-50 border border-green-500 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">💡 CONTINUO</h4>
-              <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                <li>Actualizar Google Sheet cada lunes</li>
-                <li>Revisar alertas semanalmente</li>
-                <li>Analizar ROI mensualmente</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip 
-                        formatter={(v) => formatCurrency(v)}
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      />
-                      {/* Línea de datos reales */}
-                      <Area 
-                        type="monotone" 
-                        dataKey="saldoAcum" 
-                        data={realData}
-                        stroke="#3b82f6" 
-                        strokeWidth={3} 
-                        fill="url(#colorSaldo)"
-                        name="Saldo Real"
-                      />
-                      {/* Línea de proyecciones */}
-                      {showProjections && projectionData.length > 0 && (
-                        <Area 
-                          type="monotone" 
-                          dataKey="saldoAcum" 
-                          data={[realData[realData.length - 1], ...projectionData]}
-                          stroke="#8b5cf6" 
-                          strokeWidth={2}
-                          strokeDasharray="5 5"
-                          fill="url(#colorSaldoProjected)"
-                          name="Proyección"
-                        />
-                      )}
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Ingresos vs Egresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
-                      <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'projections' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
-                    <p className="text-sm text-green-700 mb-2">Ingresos +20%, Egresos -10%</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
-                    <p className="text-sm text-blue-700 mb-2">Ingresos -15%, Egresos estables</p>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
-                  </div>
-                  
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
-                    <p className="text-sm text-red-700 mb-2">Ingresos -30%, Egresos +10%</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos 3 Meses</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={projectionData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 12 }} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos Proyectados" />
-                      <Bar dataKey="egresos" fill="#fca5a5" name="Egresos Proyectados" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-yellow-800 mb-3">💡 Acciones Recomendadas</h4>
-                  <ul className="text-sm text-yellow-700 space-y-2 ml-4 list-disc">
-                    <li><strong>Semana 1-2:</strong> Acelerar cobros de MercadoLibre y Walmart</li>
-                    <li><strong>Semana 3-4:</strong> Postergar compras grandes hasta mejorar liquidez</li>
-                    <li><strong>Semana 5-8:</strong> Negociar pagos fraccionados con proveedores</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'composition' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición Ingresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={incomeComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {incomeComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={opexComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {opexComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'analysis' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Saldo Neto Semanal</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Bar dataKey="saldoNeto" name="Saldo Neto">
-                        {historicalData.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.saldoNeto >= 0 ? '#10b981' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Ingreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgIngresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Egreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgEgresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Margen Neto</p>
-                    <p className={'text-xl font-bold ' + ((avgIngresos - avgEgresos) >= 0 ? 'text-green-600' : 'text-red-600')}>
-                      {formatCurrency(avgIngresos - avgEgresos)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    ⚠️ Puntos Críticos
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
-                    <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {historicalData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Plan de Acción Prioritario</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-              <h4 className="font-semibold text-red-800 mb-2">🚨 URGENTE</h4>
-              <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
-                <li>Buscar línea de crédito adicional</li>
-                <li>Negociar aplazamiento de préstamos</li>
-                <li>Acelerar cobros pendientes</li>
-              </ul>
-            </div>
-            
-            <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-4">
-              <h4 className="font-semibold text-orange-800 mb-2">⚠️ IMPORTANTE</h4>
-              <ul className="text-sm text-orange-700 space-y-1 ml-4 list-disc">
-                <li>Fraccionar compras de mercancía</li>
-                <li>Renegociar con proveedores</li>
-                <li>Reducir publicidad 20%</li>
-              </ul>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📊 ESTRATÉGICO</h4>
-              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Crecer Walmart y Falabella 50%</li>
-                <li>Colchón mínimo $5M</li>
-                <li>Optimizar logística</li>
-              </ul>
-            </div>
-            
-            <div className="bg-green-50 border border-green-500 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">💡 CONTINUO</h4>
-              <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                <li>Actualizar Google Sheet cada lunes</li>
-                <li>Revisar alertas semanalmente</li>
-                <li>Analizar ROI mensualmente</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
+                      <Tooltip formatter={(v) => format + (v/1000000).toFixed(1) + 'M'} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
                       <Bar dataKey="saldoNeto" name="Saldo Neto">
                         {realData.map((entry, idx) => (
@@ -1371,9 +641,9 @@ export default function App() {
                   </h4>
                   <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
                     <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {historicalData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
+                    <li>Préstamos representan aproximadamente 48% de egresos</li>
+                    <li>{weeksNegative} semanas con saldo negativo de {realData.length} totales</li>
+                    <li>Dependencia alta de MercadoLibre (aproximadamente 93% ingresos)</li>
                   </ul>
                 </div>
               </div>
@@ -1424,46 +694,7 @@ export default function App() {
       </div>
     </div>
   );
-} + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip 
-                        formatter={(v) => formatCurrency(v)}
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      />
-                      {/* Línea de datos reales */}
-                      <Area 
-                        type="monotone" 
-                        dataKey="saldoAcum" 
-                        data={realData}
-                        stroke="#3b82f6" 
-                        strokeWidth={3} 
-                        fill="url(#colorSaldo)"
-                        name="Saldo Real"
-                      />
-                      {/* Línea de proyecciones */}
-                      {showProjections && projectionData.length > 0 && (
-                        <Area 
-                          type="monotone" 
-                          dataKey="saldoAcum" 
-                          data={[realData[realData.length - 1], ...projectionData]}
-                          stroke="#8b5cf6" 
-                          strokeWidth={2}
-                          strokeDasharray="5 5"
-                          fill="url(#colorSaldoProjected)"
-                          name="Proyección"
-                        />
-                      )}
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Ingresos vs Egresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
+}Currency(v)} />
                       <Legend />
                       <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
                       <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
@@ -1496,7 +727,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos 3 Meses</h3>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos Meses</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={projectionData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -1540,570 +771,4 @@ export default function App() {
                           <Cell key={idx} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={opexComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {opexComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'analysis' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Saldo Neto Semanal</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Bar dataKey="saldoNeto" name="Saldo Neto">
-                        {historicalData.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.saldoNeto >= 0 ? '#10b981' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Ingreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgIngresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Egreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgEgresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Margen Neto</p>
-                    <p className={'text-xl font-bold ' + ((avgIngresos - avgEgresos) >= 0 ? 'text-green-600' : 'text-red-600')}>
-                      {formatCurrency(avgIngresos - avgEgresos)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    ⚠️ Puntos Críticos
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
-                    <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {historicalData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Plan de Acción Prioritario</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-              <h4 className="font-semibold text-red-800 mb-2">🚨 URGENTE</h4>
-              <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
-                <li>Buscar línea de crédito adicional</li>
-                <li>Negociar aplazamiento de préstamos</li>
-                <li>Acelerar cobros pendientes</li>
-              </ul>
-            </div>
-            
-            <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-4">
-              <h4 className="font-semibold text-orange-800 mb-2">⚠️ IMPORTANTE</h4>
-              <ul className="text-sm text-orange-700 space-y-1 ml-4 list-disc">
-                <li>Fraccionar compras de mercancía</li>
-                <li>Renegociar con proveedores</li>
-                <li>Reducir publicidad 20%</li>
-              </ul>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📊 ESTRATÉGICO</h4>
-              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Crecer Walmart y Falabella 50%</li>
-                <li>Colchón mínimo $5M</li>
-                <li>Optimizar logística</li>
-              </ul>
-            </div>
-            
-            <div className="bg-green-50 border border-green-500 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">💡 CONTINUO</h4>
-              <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                <li>Actualizar Google Sheet cada lunes</li>
-                <li>Revisar alertas semanalmente</li>
-                <li>Analizar ROI mensualmente</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
-                      <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'projections' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
-                    <p className="text-sm text-green-700 mb-2">Ingresos +20%, Egresos -10%</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
-                    <p className="text-sm text-blue-700 mb-2">Ingresos -15%, Egresos estables</p>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
-                  </div>
-                  
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
-                    <p className="text-sm text-red-700 mb-2">Ingresos -30%, Egresos +10%</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos 3 Meses</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={projectionData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 12 }} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos Proyectados" />
-                      <Bar dataKey="egresos" fill="#fca5a5" name="Egresos Proyectados" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-yellow-800 mb-3">💡 Acciones Recomendadas</h4>
-                  <ul className="text-sm text-yellow-700 space-y-2 ml-4 list-disc">
-                    <li><strong>Semana 1-2:</strong> Acelerar cobros de MercadoLibre y Walmart</li>
-                    <li><strong>Semana 3-4:</strong> Postergar compras grandes hasta mejorar liquidez</li>
-                    <li><strong>Semana 5-8:</strong> Negociar pagos fraccionados con proveedores</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'composition' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición Ingresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={incomeComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {incomeComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={opexComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {opexComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'analysis' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Saldo Neto Semanal</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Bar dataKey="saldoNeto" name="Saldo Neto">
-                        {historicalData.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.saldoNeto >= 0 ? '#10b981' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Ingreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgIngresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Egreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgEgresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Margen Neto</p>
-                    <p className={'text-xl font-bold ' + ((avgIngresos - avgEgresos) >= 0 ? 'text-green-600' : 'text-red-600')}>
-                      {formatCurrency(avgIngresos - avgEgresos)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    ⚠️ Puntos Críticos
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
-                    <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {historicalData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Plan de Acción Prioritario</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-              <h4 className="font-semibold text-red-800 mb-2">🚨 URGENTE</h4>
-              <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
-                <li>Buscar línea de crédito adicional</li>
-                <li>Negociar aplazamiento de préstamos</li>
-                <li>Acelerar cobros pendientes</li>
-              </ul>
-            </div>
-            
-            <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-4">
-              <h4 className="font-semibold text-orange-800 mb-2">⚠️ IMPORTANTE</h4>
-              <ul className="text-sm text-orange-700 space-y-1 ml-4 list-disc">
-                <li>Fraccionar compras de mercancía</li>
-                <li>Renegociar con proveedores</li>
-                <li>Reducir publicidad 20%</li>
-              </ul>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📊 ESTRATÉGICO</h4>
-              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Crecer Walmart y Falabella 50%</li>
-                <li>Colchón mínimo $5M</li>
-                <li>Optimizar logística</li>
-              </ul>
-            </div>
-            
-            <div className="bg-green-50 border border-green-500 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">💡 CONTINUO</h4>
-              <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                <li>Actualizar Google Sheet cada lunes</li>
-                <li>Revisar alertas semanalmente</li>
-                <li>Analizar ROI mensualmente</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-} + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip 
-                        formatter={(v) => formatCurrency(v)}
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      />
-                      {/* Línea de datos reales */}
-                      <Area 
-                        type="monotone" 
-                        dataKey="saldoAcum" 
-                        data={realData}
-                        stroke="#3b82f6" 
-                        strokeWidth={3} 
-                        fill="url(#colorSaldo)"
-                        name="Saldo Real"
-                      />
-                      {/* Línea de proyecciones */}
-                      {showProjections && projectionData.length > 0 && (
-                        <Area 
-                          type="monotone" 
-                          dataKey="saldoAcum" 
-                          data={[realData[realData.length - 1], ...projectionData]}
-                          stroke="#8b5cf6" 
-                          strokeWidth={2}
-                          strokeDasharray="5 5"
-                          fill="url(#colorSaldoProjected)"
-                          name="Proyección"
-                        />
-                      )}
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Ingresos vs Egresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
-                      <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'projections' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
-                    <p className="text-sm text-green-700 mb-2">Ingresos +20%, Egresos -10%</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
-                    <p className="text-sm text-blue-700 mb-2">Ingresos -15%, Egresos estables</p>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
-                  </div>
-                  
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
-                    <p className="text-sm text-red-700 mb-2">Ingresos -30%, Egresos +10%</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Proyección Próximos 3 Meses</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={projectionData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 12 }} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Legend />
-                      <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos Proyectados" />
-                      <Bar dataKey="egresos" fill="#fca5a5" name="Egresos Proyectados" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-yellow-800 mb-3">💡 Acciones Recomendadas</h4>
-                  <ul className="text-sm text-yellow-700 space-y-2 ml-4 list-disc">
-                    <li><strong>Semana 1-2:</strong> Acelerar cobros de MercadoLibre y Walmart</li>
-                    <li><strong>Semana 3-4:</strong> Postergar compras grandes hasta mejorar liquidez</li>
-                    <li><strong>Semana 5-8:</strong> Negociar pagos fraccionados con proveedores</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'composition' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición Ingresos</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={incomeComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {incomeComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Composición OPEX</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={opexComposition}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}
-                        outerRadius={80}
-                        dataKey="value"
-                      >
-                        {opexComposition.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'analysis' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Saldo Neto Semanal</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={historicalData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tick={{ fill: '#64748b' }} tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
-                      <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Bar dataKey="saldoNeto" name="Saldo Neto">
-                        {historicalData.map((entry, idx) => (
-                          <Cell key={idx} fill={entry.saldoNeto >= 0 ? '#10b981' : '#ef4444'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Ingreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgIngresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Egreso Promedio</p>
-                    <p className="text-xl font-bold text-slate-800">{formatCurrency(avgEgresos)}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-1">Margen Neto</p>
-                    <p className={'text-xl font-bold ' + ((avgIngresos - avgEgresos) >= 0 ? 'text-green-600' : 'text-red-600')}>
-                      {formatCurrency(avgIngresos - avgEgresos)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                    ⚠️ Puntos Críticos
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1 ml-6 list-disc">
-                    <li>Saldo final: {formatCurrency(lastSaldo)}</li>
-                    <li>Préstamos representan ~48% de egresos</li>
-                    <li>{weeksNegative} semanas con saldo negativo de {historicalData.length} totales</li>
-                    <li>Dependencia alta de MercadoLibre (~93% ingresos)</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Plan de Acción Prioritario</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4">
-              <h4 className="font-semibold text-red-800 mb-2">🚨 URGENTE</h4>
-              <ul className="text-sm text-red-700 space-y-1 ml-4 list-disc">
-                <li>Buscar línea de crédito adicional</li>
-                <li>Negociar aplazamiento de préstamos</li>
-                <li>Acelerar cobros pendientes</li>
-              </ul>
-            </div>
-            
-            <div className="bg-orange-50 border-2 border-orange-500 rounded-lg p-4">
-              <h4 className="font-semibold text-orange-800 mb-2">⚠️ IMPORTANTE</h4>
-              <ul className="text-sm text-orange-700 space-y-1 ml-4 list-disc">
-                <li>Fraccionar compras de mercancía</li>
-                <li>Renegociar con proveedores</li>
-                <li>Reducir publicidad 20%</li>
-              </ul>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">📊 ESTRATÉGICO</h4>
-              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Crecer Walmart y Falabella 50%</li>
-                <li>Colchón mínimo $5M</li>
-                <li>Optimizar logística</li>
-              </ul>
-            </div>
-            
-            <div className="bg-green-50 border border-green-500 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">💡 CONTINUO</h4>
-              <ul className="text-sm text-green-700 space-y-1 ml-4 list-disc">
-                <li>Actualizar Google Sheet cada lunes</li>
-                <li>Revisar alertas semanalmente</li>
-                <li>Analizar ROI mensualmente</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+                      <Tooltip formatter={(v) => format
