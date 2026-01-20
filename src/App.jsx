@@ -42,10 +42,28 @@ export default function App() {
   const processSheetData = (mesesData) => {
     const data = [];
     
+    // Mapeo de nombres de meses a abreviaturas
+    const monthMap = {
+      'Octubre': 'Oct',
+      'Noviembre': 'Nov',
+      'Diciembre': 'Dic',
+      'Enero': 'Ene',
+      'Febrero': 'Feb',
+      'Marzo': 'Mar',
+      'Abril': 'Abr',
+      'Mayo': 'May',
+      'Junio': 'Jun',
+      'Julio': 'Jul',
+      'Agosto': 'Ago',
+      'Septiembre': 'Sep'
+    };
+    
     Object.entries(mesesData).forEach(([mes, semanas]) => {
-      semanas.forEach((semana, idx) => {
+      const mesAbrev = monthMap[mes] || mes;
+      
+      semanas.forEach((semana) => {
         data.push({
-          week: `${mes} S${idx + 1}`,
+          week: `${mesAbrev} S${semana.semana}`,
           ingresos: semana.ingresos || 0,
           egresos: (semana.opex || 0) + (semana.capex || 0) + (semana.impuestos || 0),
           saldoNeto: semana.saldo || 0,
@@ -54,7 +72,7 @@ export default function App() {
       });
     });
 
-    return data.filter(d => d.ingresos > 0 || d.egresos > 0 || d.saldoAcum !== 0);
+    return data.filter(d => d.ingresos > 0 || d.egresos > 0 || Math.abs(d.saldoAcum) > 0);
   };
 
   const formatCurrency = (value) => {
