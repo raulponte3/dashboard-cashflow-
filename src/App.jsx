@@ -258,7 +258,7 @@ export default function App() {
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Saldo Acumulado</h3>
                   <ResponsiveContainer width="100%" height={350}>
-                    <AreaChart data={cashflowData}>
+                    <AreaChart>
                       <defs>
                         <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -270,10 +270,74 @@ export default function App() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
+                      <XAxis dataKey="week" data={cashflowData} tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
+                      <YAxis tickFormatter={(v) => '
+
+            {activeTab === 'projections' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-green-50 border rounded-lg p-4">
+                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
+                  </div>
+                  <div className="bg-blue-50 border rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
+                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
+                  </div>
+                  <div className="bg-red-50 border rounded-lg p-4">
+                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
+                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={projectionData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="week" />
+                    <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
+                    <Tooltip formatter={(v) => formatCurrency(v)} />
+                    <Legend />
+                    <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos" />
+                    <Bar dataKey="egresos" fill="#fca5a5" name="Egresos" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {activeTab === 'composition' && (
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Ingresos</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie data={incomeComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
+                        {incomeComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                      </Pie>
                       <Tooltip formatter={(v) => formatCurrency(v)} />
-                      <Area type="monotone" dataKey="saldoAcum" data={realData} stroke="#3b82f6" strokeWidth={3} fill="url(#colorSaldo)" name="Real" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">OPEX</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie data={opexComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
+                        {opexComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(v) => formatCurrency(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} + (v/1000000).toFixed(1) + 'M'} />
+                      <Tooltip formatter={(v) => formatCurrency(v)} />
+                      <Legend />
+                      <Area type="monotone" dataKey="saldoAcum" data={realData} stroke="#3b82f6" strokeWidth={3} fill="url(#colorSaldo)" name="Saldo Real" />
                       {showProjections && projectionData.length > 0 && (
                         <Area type="monotone" dataKey="saldoAcum" data={[realData[realData.length - 1], ...projectionData]} stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" fill="url(#colorProj)" name="Proyección" />
                       )}
@@ -281,12 +345,75 @@ export default function App() {
                   </ResponsiveContainer>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Ingresos vs Egresos</h3>
+                  <h3 className="text-lg font-semibold mb-4">Ingresos vs Egresos (Datos Reales)</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={realData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
+                      <YAxis tickFormatter={(v) => '
+
+            {activeTab === 'projections' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-green-50 border rounded-lg p-4">
+                    <h4 className="font-semibold text-green-800 mb-2">📈 Optimista</h4>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(projectedSaldo * 1.5)}</p>
+                  </div>
+                  <div className="bg-blue-50 border rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-800 mb-2">📊 Base</h4>
+                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedSaldo)}</p>
+                  </div>
+                  <div className="bg-red-50 border rounded-lg p-4">
+                    <h4 className="font-semibold text-red-800 mb-2">📉 Pesimista</h4>
+                    <p className="text-2xl font-bold text-red-600">{formatCurrency(projectedSaldo * 0.4)}</p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={projectionData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="week" />
+                    <YAxis tickFormatter={(v) => '$' + (v/1000000).toFixed(1) + 'M'} />
+                    <Tooltip formatter={(v) => formatCurrency(v)} />
+                    <Legend />
+                    <Bar dataKey="ingresos" fill="#a78bfa" name="Ingresos" />
+                    <Bar dataKey="egresos" fill="#fca5a5" name="Egresos" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {activeTab === 'composition' && (
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Ingresos</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie data={incomeComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
+                        {incomeComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(v) => formatCurrency(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">OPEX</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie data={opexComposition} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => name + ': ' + (percent * 100).toFixed(0) + '%'}>
+                        {opexComposition.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(v) => formatCurrency(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} + (v/1000000).toFixed(1) + 'M'} />
                       <Tooltip formatter={(v) => formatCurrency(v)} />
                       <Legend />
                       <Bar dataKey="ingresos" fill="#10b981" name="Ingresos" />
