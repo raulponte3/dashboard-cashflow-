@@ -11,6 +11,7 @@ export default function App() {
   const [currentWeekIndex, setCurrentWeekIndex] = useState(null);
   const [showDateSelector, setShowDateSelector] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     // Verificar si ya está autenticado
@@ -18,6 +19,7 @@ export default function App() {
     if (auth === 'true') {
       setIsAuthenticated(true);
     }
+    setCheckingAuth(false);
   }, []);
 
   useEffect(() => {
@@ -153,6 +155,22 @@ export default function App() {
     { name: 'Sueldos', value: 2500000, color: '#10b981' },
     { name: 'Otros', value: 3000000, color: '#6b7280' }
   ];
+
+  // Mostrar login si aún está verificando o no está autenticado
+  if (checkingAuth) {
+    return (
+      <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔐</div>
+          <h2 className="text-2xl font-bold text-slate-800">Verificando sesión...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   if (loading) {
     return (
