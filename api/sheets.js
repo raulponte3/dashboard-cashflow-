@@ -27,9 +27,20 @@ export default async function handler(req, res) {
     if (!rows || rows.length === 0) {
       return res.status(200).json({ 
         meses: {}, 
-        error: "No se encontraron datos en el sheet"
+        error: "No se encontraron datos en el sheet",
+        debug: {
+          totalRows: 0
+        }
       });
     }
+
+    // DEBUG: Mostrar las primeras filas para ver la estructura
+    const debugInfo = {
+      totalRows: rows.length,
+      firstRow: rows[0],
+      secondRow: rows[1],
+      rowsWithData: []
+    };
 
     // Encontrar las filas clave
     let ingresosRow = -1;
@@ -39,8 +50,18 @@ export default async function handler(req, res) {
     let saldoNetoRow = -1;
     let saldoAcumRow = -1;
 
-    for (let i = 0; i < rows.length; i++) {
+    for (let i = 0; i < Math.min(rows.length, 50); i++) {
       const firstCell = rows[i][0];
+      
+      // Guardar info de debug
+      if (firstCell && firstCell.trim()) {
+        debugInfo.rowsWithData.push({
+          index: i,
+          firstCell: firstCell,
+          totalCells: rows[i].length
+        });
+      }
+      
       if (firstCell === 'Total Ingresos') ingresosRow = i;
       if (firstCell === 'Total OPEX') opexRow = i;
       if (firstCell === 'Total CAPEX') capexRow = i;
@@ -49,10 +70,20 @@ export default async function handler(req, res) {
       if (firstCell === 'SALDO ACUMULADO') saldoAcumRow = i;
     }
 
+    debugInfo.foundRows = {
+      ingresosRow,
+      opexRow,
+      capexRow,
+      impuestosRow,
+      saldoNetoRow,
+      saldoAcumRow
+    };
+
     if (ingresosRow === -1 || saldoAcumRow === -1) {
       return res.status(200).json({ 
         meses: {},
-        error: "No se encontraron las filas necesarias"
+        error: "No se encontraron las filas necesarias",
+        debug: debugInfo
       });
     }
 
@@ -60,11 +91,14 @@ export default async function handler(req, res) {
     const headers = rows[1];
     const monthsRow = rows[0];
     
+    debugInfo.headers = headers;
+    debugInfo.monthsRow = monthsRow;
+    
     const meses = {};
     let currentMonth = null;
 
     // Procesar cada columna a partir de la columna 1
-    for (let col = 1; col < headers.length; col++) {
+    for (let col = 1; col < Math.min(headers.length, 30); col++) {
       const monthName = monthsRow[col];
       const weekName = headers[col];
       
@@ -102,12 +136,18 @@ export default async function handler(req, res) {
       }
     }
 
-    res.status(200).json({ meses });
+    debugInfo.totalWeeksProcessed = Object.values(meses).reduce((sum, m) => sum + m.length, 0);
+
+    res.status(200).json({ 
+      meses,
+      debug: debugInfo
+    });
 
   } catch (error) {
     console.error("Sheets error:", error);
     res.status(500).json({ 
       error: error.message,
+      errorStack: error.stack,
       meses: {}
     });
   }
