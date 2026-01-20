@@ -121,7 +121,7 @@ Sé MUY específico con números, porcentajes y plazos concretos.`;
             🤖 Análisis Inteligente con IA
           </h3>
           <p className="text-sm text-slate-600 mt-1">
-            GPT-4 analizará tus datos y te dará recomendaciones personalizadas
+            Llama 3.3 70B analizará tus datos y te dará recomendaciones personalizadas
           </p>
         </div>
         <button
@@ -147,7 +147,7 @@ Sé MUY específico con números, porcentajes y plazos concretos.`;
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <p className="text-sm text-red-700">❌ {error}</p>
           <p className="text-xs text-red-600 mt-2">
-            Asegúrate de haber configurado tu OPENAI_API_KEY en las variables de entorno de Vercel.
+            Asegúrate de haber configurado tu GROQ_API_KEY en las variables de entorno de Vercel.
           </p>
         </div>
       )}
@@ -168,7 +168,7 @@ Sé MUY específico con números, porcentajes y plazos concretos.`;
 
           <div className="mt-6 pt-4 border-t border-blue-200 flex items-center justify-between">
             <p className="text-xs text-slate-500 italic">
-              💡 Análisis generado por GPT-4 basado en {realData.length} semanas de datos ({realData[0]?.week} al {realData[realData.length - 1]?.week})
+              💡 Análisis generado por Llama 3.3 70B (Groq) basado en {realData.length} semanas de datos ({realData[0]?.week} al {realData[realData.length - 1]?.week})
             </p>
             <button
               onClick={analyzeWithAI}
@@ -184,10 +184,10 @@ Sé MUY específico con números, porcentajes y plazos concretos.`;
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
           <div className="text-6xl mb-4">🧠</div>
           <h4 className="text-lg font-semibold text-slate-800 mb-2">
-            Obtén insights personalizados con IA
+            Obtén insights personalizados con IA (GRATIS)
           </h4>
           <p className="text-sm text-slate-600 mb-4">
-            GPT-4 analizará tus {realData.length} semanas de datos y te dará recomendaciones específicas
+            Llama 3.3 70B analizará tus {realData.length} semanas de datos sin costo alguno
           </p>
           <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto mt-6">
             <div className="bg-white p-4 rounded-lg border border-slate-200">
