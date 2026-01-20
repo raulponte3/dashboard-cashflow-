@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import Login from './Login';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -9,10 +10,21 @@ export default function App() {
   const [error, setError] = useState(null);
   const [currentWeekIndex, setCurrentWeekIndex] = useState(null);
   const [showDateSelector, setShowDateSelector] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    loadDataFromSheet();
+    // Verificar si ya está autenticado
+    const auth = sessionStorage.getItem('authenticated');
+    if (auth === 'true') {
+      setIsAuthenticated(true);
+    }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadDataFromSheet();
+    }
+  }, [isAuthenticated]);
 
   const loadDataFromSheet = async () => {
     setLoading(true);
@@ -170,6 +182,11 @@ export default function App() {
     );
   }
 
+  // Mostrar login si no está autenticado
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -184,6 +201,9 @@ export default function App() {
             </button>
             <button onClick={loadDataFromSheet} disabled={loading} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400">
               Recargar
+            </button>
+            <button onClick={() => { sessionStorage.removeItem('authenticated'); setIsAuthenticated(false); }} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+              Cerrar Sesión
             </button>
           </div>
         </div>
